@@ -41,9 +41,10 @@ function get_csrf_token() {
  * @return bool True if the token is valid, false otherwise.
  */
 function validate_csrf_token($token) {
-    if (isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token)) {
-        // Token is valid, unset it to prevent reuse
-        unset($_SESSION['csrf_token']);
+    if (isset($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token)) {
+        // For Single Page Applications or heavy AJAX pages, we use a session-long token.
+        // Unsetting the token after first use would break subsequent AJAX calls on the same page.
+        // The token is still secure as it's tied to the user's session.
         return true;
     }
     return false;
