@@ -12,6 +12,7 @@
             <a href="/admin/users">User Management</a>
             <a href="/admin/settings">Global Settings</a>
             <a href="/admin/logs">Game Logs</a>
+            <a href="/instructions">How to Play</a>
             <!-- Add other admin links here -->
         </nav>
         <form action="/logout" method="POST" style="display:inline;">

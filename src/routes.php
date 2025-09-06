@@ -7,6 +7,7 @@
 // Public routes
 $router->get('', 'PagesController@home');
 $router->get('about', 'PagesController@about');
+$router->get('instructions', 'PagesController@instructions');
 
 // Authentication routes
 $router->get('login', 'AuthController@create');

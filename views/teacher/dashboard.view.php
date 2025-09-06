@@ -12,6 +12,7 @@
             <a href="/teacher/groups">My Groups</a>
             <a href="/teacher/quizzes">My Quizzes</a>
             <a href="/games/create" style="font-weight: bold; color: green;">Start New Game</a>
+            <a href="/instructions">How to Play</a>
             <!-- Add other teacher links here -->
         </nav>
         <form action="/logout" method="POST" style="display:inline;">

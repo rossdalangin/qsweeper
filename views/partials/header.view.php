@@ -19,6 +19,7 @@
             <div>
                 <a href="/"><strong>Quiz Sweeper</strong></a>
                 <a href="/about">About</a>
+                <a href="/instructions">How to Play</a>
             </div>
             <div>
                 <?php if (isset($_SESSION['user'])): ?>

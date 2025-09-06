@@ -12,7 +12,7 @@
 <body>
     <header>
         <h1>Student Dashboard</h1>
-        <p>Welcome, <?= htmlspecialchars($user['name']) ?>!</p>
+        <p>Welcome, <?= htmlspecialchars($user['name']) ?>! | <a href="/instructions">How to Play</a></p>
         <form action="/logout" method="POST" style="display:inline;">
             <button type="submit">Logout</button>
         </form>

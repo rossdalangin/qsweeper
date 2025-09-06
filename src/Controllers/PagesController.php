@@ -10,4 +10,8 @@ class PagesController {
     public function about() {
         return view('about', ['title' => 'About Us']);
     }
+
+    public function instructions() {
+        return view('instructions', ['title' => 'How to Play']);
+    }
 }
