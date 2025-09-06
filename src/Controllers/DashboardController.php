@@ -2,26 +2,38 @@
 
 namespace App\Controllers;
 
-class DashboardController {
+/**
+ * Handles the main dashboard view after a user logs in.
+ * Redirects users to the appropriate dashboard based on their role.
+ */
+class DashboardController extends Controller {
 
+    /**
+     * Ensures the user is logged in before showing the dashboard.
+     */
     public function __construct() {
-        // Protect this controller
-        // If user is not logged in, redirect to login
-        if (!isset($_SESSION['user'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->isLoggedIn();
     }
 
+    /**
+     * Fetches data and displays the correct dashboard for the logged-in user.
+     * @return mixed
+     */
     public function index() {
         $user = $_SESSION['user'];
 
         // Route to the correct dashboard based on role
         switch ($user['role']) {
             case 'admin':
-                return view('admin/dashboard', ['user' => $user]);
+                return view('admin/dashboard', [
+                    'user' => $user,
+                    'title' => 'Admin Dashboard'
+                ]);
             case 'teacher':
-                return view('teacher/dashboard', ['user' => $user]);
+                return view('teacher/dashboard', [
+                    'user' => $user,
+                    'title' => 'Teacher Dashboard'
+                ]);
             case 'student':
                 $db = \App\Core\Database::getInstance()->getConnection();
                 $userId = $user['id'];
@@ -52,7 +64,8 @@ class DashboardController {
                 return view('student/dashboard', [
                     'user' => $user,
                     'activeGames' => $activeGames,
-                    'pastGames' => $pastGames
+                    'pastGames' => $pastGames,
+                    'title' => 'Student Dashboard'
                 ]);
             default:
                 // Should not happen, but as a fallback:

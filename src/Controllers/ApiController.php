@@ -4,14 +4,37 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
+/**
+ * Handles all API requests for the application, returning JSON responses.
+ */
 class ApiController extends Controller {
 
+    /**
+     * Ensures the user is logged in and sets the response header to JSON.
+     */
     public function __construct() {
         $this->isLoggedIn();
-        // Set header to return JSON
         header('Content-Type: application/json');
     }
 
+    /**
+     * Validates the CSRF token sent in the X-CSRF-TOKEN header for API requests.
+     */
+    private function validateApiCsrf() {
+        $sentToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        if (!validate_csrf_token($sentToken)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF token validation failed.']);
+            exit();
+        }
+    }
+
+    /**
+     * Verifies that a given user is a participant in a given game.
+     * @param int $gameId The ID of the game.
+     * @param int $userId The ID of the user.
+     * @return bool True if the user is a participant, false otherwise.
+     */
     private function verifyGameParticipant($gameId, $userId) {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare(
@@ -23,30 +46,38 @@ class ApiController extends Controller {
         return $stmt->fetchColumn() > 0;
     }
 
+    /**
+     * Gets the current state of a game for AJAX polling.
+     * @param int $gameId The ID of the game.
+     */
     public function getGameState($gameId) {
-        $userId = $_SESSION['user']['id'];
-        $isTeacher = $_SESSION['user']['role'] === 'teacher';
+        $user = $_SESSION['user'];
+        $db = Database::getInstance()->getConnection();
 
-        // Security check
-        if (!$isTeacher && !$this->verifyGameParticipant($gameId, $userId)) {
+        // Security Check: User must be the teacher of the game or a student participant.
+        $gameStmt = $db->prepare("SELECT teacher_id FROM games WHERE id = :id");
+        $gameStmt->execute(['id' => $gameId]);
+        $game = $gameStmt->fetch();
+
+        if (!$game) {
+             http_response_code(404);
+             echo json_encode(['error' => 'Game not found.']);
+             exit();
+        }
+
+        $isTeacherOwner = ($user['role'] === 'teacher' && $game['teacher_id'] == $user['id']);
+        $isStudentParticipant = ($user['role'] === 'student' && $this->verifyGameParticipant($gameId, $user['id']));
+
+        if (!$isTeacherOwner && !$isStudentParticipant) {
             http_response_code(403);
-            echo json_encode(['error' => 'Forbidden']);
+            echo json_encode(['error' => 'You are not authorized to view this game state.']);
             exit();
         }
 
-        $db = Database::getInstance()->getConnection();
-
         // Get game status
-        $stmt = $db->prepare("SELECT status, teacher_id FROM games WHERE id = :id");
+        $stmt = $db->prepare("SELECT status FROM games WHERE id = :id");
         $stmt->execute(['id' => $gameId]);
-        $game = $stmt->fetch();
-
-        // If user is not the teacher of the game, deny access
-        if (!$isTeacher && $game['teacher_id'] != $_SESSION['user']['id'] && !$this->verifyGameParticipant($gameId, $userId)) {
-             http_response_code(403);
-             echo json_encode(['error' => 'Forbidden']);
-             exit();
-        }
+        $gameStatus = $stmt->fetchColumn();
 
         // Get all tiles
         $stmt = $db->prepare("SELECT tile_index, type, revealed, revealed_by_user_id FROM game_tiles WHERE game_id = :id");
@@ -67,22 +98,17 @@ class ApiController extends Controller {
         }
 
         echo json_encode([
-            'status' => $game['status'],
+            'status' => $gameStatus,
             'tiles' => $tiles,
             'scores' => $scores
         ]);
         exit();
     }
 
-    private function validateApiCsrf() {
-        $sentToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($sentToken)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF token validation failed.']);
-            exit();
-        }
-    }
-
+    /**
+     * Handles a student's request to reveal a tile. This is a critical transactional action.
+     * @param int $gameId The ID of the game.
+     */
     public function revealTile($gameId) {
         $this->validateApiCsrf();
         $userId = $_SESSION['user']['id'];
@@ -195,6 +221,10 @@ class ApiController extends Controller {
         exit();
     }
 
+    /**
+     * Handles a student's answer submission for a question tile.
+     * @param int $gameId The ID of the game.
+     */
     public function submitAnswer($gameId) {
         $this->validateApiCsrf();
         $userId = $_SESSION['user']['id'];

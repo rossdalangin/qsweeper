@@ -4,12 +4,23 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
+/**
+ * Handles all actions related to questions and choices within a quiz.
+ */
 class QuestionController extends Controller {
 
+    /**
+     * Ensures the user is a teacher before any action.
+     */
     public function __construct() {
         $this->isTeacher();
     }
 
+    /**
+     * Displays the question builder interface for a specific quiz.
+     * @param int $quizId The ID of the quiz to manage questions for.
+     * @return mixed
+     */
     public function index($quizId) {
         $db = Database::getInstance()->getConnection();
 
@@ -53,9 +64,17 @@ class QuestionController extends Controller {
             }
         }
 
-        return view('teacher/questions/index', ['quiz' => $quiz, 'questions' => $questions]);
+        return view('teacher/questions/index', [
+            'quiz' => $quiz,
+            'questions' => $questions,
+            'title' => 'Manage Questions'
+        ]);
     }
 
+    /**
+     * Processes the creation of a new question and its choices.
+     * @param int $quizId The ID of the quiz to add the question to.
+     */
     public function store($quizId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -137,7 +156,6 @@ class QuestionController extends Controller {
             $db->commit();
         } catch (\Exception $e) {
             $db->rollBack();
-            // In a real app, log the error
             die('Failed to save question: ' . $e->getMessage());
         }
 
@@ -145,6 +163,11 @@ class QuestionController extends Controller {
         exit();
     }
 
+    /**
+     * Displays the form to edit a question.
+     * @param int $questionId The ID of the question to edit.
+     * @return mixed
+     */
     public function edit($questionId) {
         $db = Database::getInstance()->getConnection();
 
@@ -168,13 +191,20 @@ class QuestionController extends Controller {
         $choices = $stmt->fetchAll();
         $question['choices'] = $choices;
 
-        return view('teacher/questions/edit', ['question' => $question]);
+        return view('teacher/questions/edit', [
+            'question' => $question,
+            'title' => 'Edit Question'
+        ]);
     }
 
+    /**
+     * Processes the update of an existing question.
+     * @param int $questionId The ID of the question to update.
+     */
     public function update($questionId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
-        // 1. Validation
+        // Validation
         if (empty($_POST['text']) || !isset($_POST['choices']) || !isset($_POST['is_correct'])) {
             die('Question text and choices are required.');
         }
@@ -185,13 +215,13 @@ class QuestionController extends Controller {
 
         $db = Database::getInstance()->getConnection();
 
-        // 2. Get question and verify ownership
+        // Get question and verify ownership
         $stmt = $db->prepare("SELECT * FROM questions WHERE id = :id");
         $stmt->execute(['id' => $questionId]);
         $question = $stmt->fetch();
         // (Ownership was checked in the edit method, but double-check here)
 
-        // 3. Handle Image
+        // Handle Image
         $imagePath = $question['image_path'];
         if (isset($_POST['remove_image']) && $_POST['remove_image'] == '1') {
             if ($imagePath && file_exists('public/' . $imagePath)) {
@@ -199,14 +229,12 @@ class QuestionController extends Controller {
             }
             $imagePath = null;
         }
-        // Check for new upload (this will overwrite existing or removed)
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             // (Add the same validation as in store() method)
             $uploadDir = 'uploads/';
             $fileName = uniqid() . '-' . basename($_FILES['image']['name']);
             $targetPath = $uploadDir . $fileName;
             if (move_uploaded_file($_FILES['image']['tmp_name'], 'public/' . $targetPath)) {
-                // Delete old image if it exists
                 if ($imagePath && file_exists('public/' . $imagePath)) {
                     unlink('public/' . $imagePath);
                 }
@@ -214,7 +242,7 @@ class QuestionController extends Controller {
             }
         }
 
-        // 4. DB Transaction
+        // DB Transaction
         try {
             $db->beginTransaction();
 
@@ -251,6 +279,10 @@ class QuestionController extends Controller {
         exit();
     }
 
+    /**
+     * Processes the deletion of a question.
+     * @param int $questionId The ID of the question to delete.
+     */
     public function destroy($questionId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 

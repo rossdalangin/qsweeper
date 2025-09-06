@@ -4,32 +4,75 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
+/**
+ * Handles all teacher-specific functionality, like managing quizzes and groups.
+ */
 class TeacherController extends Controller {
 
+    /**
+     * Ensures the user is a teacher before any action.
+     */
     public function __construct() {
         $this->isTeacher();
     }
 
+    /**
+     * The main entry point for the /teacher route, redirects to the groups list.
+     */
     public function index() {
-        // Redirect to the groups index for now
         header('Location: /teacher/groups');
         exit();
     }
 
-    public function groupsDestroy() {
+    // --- Group Management ---
+
+    /**
+     * Displays the list of the teacher's groups.
+     * @return mixed
+     */
+    public function groupsIndex() {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare(
+            "SELECT g.id, g.name, g.created_at, COUNT(gm.id) as member_count
+             FROM groups g
+             LEFT JOIN group_members gm ON g.id = gm.group_id
+             WHERE g.teacher_id = :teacher_id
+             GROUP BY g.id
+             ORDER BY g.created_at DESC"
+        );
+        $stmt->execute(['teacher_id' => $_SESSION['user']['id']]);
+        $groups = $stmt->fetchAll();
+
+        return view('teacher/groups/index', [
+            'groups' => $groups,
+            'title' => 'My Groups'
+        ]);
+    }
+
+    /**
+     * Displays the form to create a new group.
+     * @return mixed
+     */
+    public function groupsCreate() {
+        return view('teacher/groups/create', ['title' => 'Create Group']);
+    }
+
+    /**
+     * Processes the creation of a new group.
+     */
+    public function groupsStore() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
-        if (empty($_POST['id'])) {
-            die('Group ID is required.');
+        if (empty($_POST['name'])) {
+            die('Group name is required.');
         }
 
         $db = Database::getInstance()->getConnection();
-        // The CASCADE foreign key on group_members will handle removing members
         $stmt = $db->prepare(
-            "DELETE FROM groups WHERE id = :id AND teacher_id = :teacher_id"
+            "INSERT INTO groups (name, teacher_id) VALUES (:name, :teacher_id)"
         );
         $stmt->execute([
-            'id' => $_POST['id'],
+            'name' => $_POST['name'],
             'teacher_id' => $_SESSION['user']['id']
         ]);
 
@@ -37,6 +80,10 @@ class TeacherController extends Controller {
         exit();
     }
 
+    /**
+     * Displays the form to edit a group's name.
+     * @return mixed
+     */
     public function groupsEdit() {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("SELECT id, name FROM groups WHERE id = :id AND teacher_id = :teacher_id");
@@ -47,9 +94,15 @@ class TeacherController extends Controller {
             die('Group not found or you do not have permission to edit it.');
         }
 
-        return view('teacher/groups/edit', ['group' => $group]);
+        return view('teacher/groups/edit', [
+            'group' => $group,
+            'title' => 'Edit Group'
+        ]);
     }
 
+    /**
+     * Processes the update of a group's name.
+     */
     public function groupsUpdate() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -71,39 +124,22 @@ class TeacherController extends Controller {
         exit();
     }
 
-    public function groupsIndex() {
-        $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare(
-            "SELECT g.id, g.name, g.created_at, COUNT(gm.id) as member_count
-             FROM groups g
-             LEFT JOIN group_members gm ON g.id = gm.group_id
-             WHERE g.teacher_id = :teacher_id
-             GROUP BY g.id
-             ORDER BY g.created_at DESC"
-        );
-        $stmt->execute(['teacher_id' => $_SESSION['user']['id']]);
-        $groups = $stmt->fetchAll();
-
-        return view('teacher/groups/index', ['groups' => $groups]);
-    }
-
-    public function groupsCreate() {
-        return view('teacher/groups/create');
-    }
-
-    public function groupsStore() {
+    /**
+     * Processes the deletion of a group.
+     */
+    public function groupsDestroy() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
-        if (empty($_POST['name'])) {
-            die('Group name is required.');
+        if (empty($_POST['id'])) {
+            die('Group ID is required.');
         }
 
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare(
-            "INSERT INTO groups (name, teacher_id) VALUES (:name, :teacher_id)"
+            "DELETE FROM groups WHERE id = :id AND teacher_id = :teacher_id"
         );
         $stmt->execute([
-            'name' => $_POST['name'],
+            'id' => $_POST['id'],
             'teacher_id' => $_SESSION['user']['id']
         ]);
 
@@ -111,6 +147,10 @@ class TeacherController extends Controller {
         exit();
     }
 
+    /**
+     * Displays the page to view and manage a single group's members.
+     * @return mixed
+     */
     public function viewGroup() {
         if (!isset($_GET['id'])) {
             die('Group ID is required.');
@@ -118,7 +158,6 @@ class TeacherController extends Controller {
 
         $db = Database::getInstance()->getConnection();
 
-        // 1. Get group details, ensuring it belongs to the current teacher
         $stmt = $db->prepare("SELECT id, name FROM groups WHERE id = :id AND teacher_id = :teacher_id");
         $stmt->execute(['id' => $_GET['id'], 'teacher_id' => $_SESSION['user']['id']]);
         $group = $stmt->fetch();
@@ -127,7 +166,6 @@ class TeacherController extends Controller {
             die('Group not found or you do not have permission to view it.');
         }
 
-        // 2. Get group members
         $stmt = $db->prepare(
             "SELECT u.id, u.name, u.email
              FROM users u
@@ -137,9 +175,16 @@ class TeacherController extends Controller {
         $stmt->execute(['group_id' => $group['id']]);
         $members = $stmt->fetchAll();
 
-        return view('teacher/groups/view', ['group' => $group, 'members' => $members]);
+        return view('teacher/groups/view', [
+            'group' => $group,
+            'members' => $members,
+            'title' => 'Manage Group'
+        ]);
     }
 
+    /**
+     * Processes adding a new member to a group.
+     */
     public function addMember() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -149,7 +194,6 @@ class TeacherController extends Controller {
 
         $db = Database::getInstance()->getConnection();
 
-        // 1. Find the student user by email
         $stmt = $db->prepare("SELECT id FROM users WHERE email = :email AND role = 'student'");
         $stmt->execute(['email' => $_POST['email']]);
         $user = $stmt->fetch();
@@ -158,14 +202,12 @@ class TeacherController extends Controller {
             die('No student account found with that email address.');
         }
 
-        // 2. Check if teacher owns the group (security check)
         $stmt = $db->prepare("SELECT id FROM groups WHERE id = :id AND teacher_id = :teacher_id");
         $stmt->execute(['id' => $_POST['group_id'], 'teacher_id' => $_SESSION['user']['id']]);
         if (!$stmt->fetch()) {
             die('You do not have permission to modify this group.');
         }
 
-        // 3. Insert the member, ignoring if they are already in the group
         $stmt = $db->prepare(
             "INSERT IGNORE INTO group_members (group_id, user_id) VALUES (:group_id, :user_id)"
         );
@@ -175,6 +217,9 @@ class TeacherController extends Controller {
         exit();
     }
 
+    /**
+     * Processes removing a member from a group.
+     */
     public function removeMember() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -184,14 +229,12 @@ class TeacherController extends Controller {
 
         $db = Database::getInstance()->getConnection();
 
-        // Check if teacher owns the group (security check)
         $stmt = $db->prepare("SELECT id FROM groups WHERE id = :id AND teacher_id = :teacher_id");
         $stmt->execute(['id' => $_POST['group_id'], 'teacher_id' => $_SESSION['user']['id']]);
         if (!$stmt->fetch()) {
             die('You do not have permission to modify this group.');
         }
 
-        // Delete the member
         $stmt = $db->prepare(
             "DELETE FROM group_members WHERE group_id = :group_id AND user_id = :user_id"
         );
@@ -201,10 +244,12 @@ class TeacherController extends Controller {
         exit();
     }
 
-    // ==================================================================
-    // QUIZ MANAGEMENT
-    // ==================================================================
+    // --- Quiz Management ---
 
+    /**
+     * Displays the list of the teacher's quizzes.
+     * @return mixed
+     */
     public function quizzesIndex() {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare(
@@ -218,13 +263,23 @@ class TeacherController extends Controller {
         $stmt->execute(['teacher_id' => $_SESSION['user']['id']]);
         $quizzes = $stmt->fetchAll();
 
-        return view('teacher/quizzes/index', ['quizzes' => $quizzes]);
+        return view('teacher/quizzes/index', [
+            'quizzes' => $quizzes,
+            'title' => 'My Quizzes'
+        ]);
     }
 
+    /**
+     * Displays the form to create a new quiz.
+     * @return mixed
+     */
     public function quizzesCreate() {
-        return view('teacher/quizzes/create');
+        return view('teacher/quizzes/create', ['title' => 'Create Quiz']);
     }
 
+    /**
+     * Processes the creation of a new quiz.
+     */
     public function quizzesStore() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -244,11 +299,14 @@ class TeacherController extends Controller {
 
         $quizId = $db->lastInsertId();
 
-        // Redirect to the question manager for the new quiz
         header('Location: /teacher/quizzes/' . $quizId . '/questions');
         exit();
     }
 
+    /**
+     * Displays the form to edit a quiz's details.
+     * @return mixed
+     */
     public function quizzesEdit() {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("SELECT id, title, description FROM quizzes WHERE id = :id AND teacher_id = :teacher_id");
@@ -259,9 +317,15 @@ class TeacherController extends Controller {
             die('Quiz not found or you do not have permission to edit it.');
         }
 
-        return view('teacher/quizzes/edit', ['quiz' => $quiz]);
+        return view('teacher/quizzes/edit', [
+            'quiz' => $quiz,
+            'title' => 'Edit Quiz'
+        ]);
     }
 
+    /**
+     * Processes the update of a quiz's details.
+     */
     public function quizzesUpdate() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -284,6 +348,9 @@ class TeacherController extends Controller {
         exit();
     }
 
+    /**
+     * Processes the deletion of a quiz.
+     */
     public function quizzesDestroy() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -292,7 +359,6 @@ class TeacherController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
-        // The CASCADE foreign key on questions will handle removing them
         $stmt = $db->prepare(
             "DELETE FROM quizzes WHERE id = :id AND teacher_id = :teacher_id"
         );

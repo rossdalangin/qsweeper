@@ -2,7 +2,16 @@
 
 namespace App\Core;
 
+/**
+ * Request Class
+ * Provides helper methods for accessing the request URI and method.
+ */
 class Request {
+    /**
+     * Gets the clean request URI, stripped of the base application path.
+     *
+     * @return string The clean URI (e.g., 'users/create').
+     */
     public static function uri() {
         // Get the full request URI path
         $requestUriPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -25,6 +34,11 @@ class Request {
         return trim($requestUriPath, '/');
     }
 
+    /**
+     * Gets the request method (e.g., 'GET', 'POST').
+     *
+     * @return string The request method.
+     */
     public static function method() {
         return $_SERVER['REQUEST_METHOD']; // e.g., GET, POST
     }

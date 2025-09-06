@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
-    <style>
-        .game-list { list-style: none; padding: 0; }
-        .game-list li { background: #f4f4f4; margin: 5px 0; padding: 10px; }
-    </style>
 </head>
 <body>
     <header>

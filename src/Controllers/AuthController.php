@@ -4,19 +4,27 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
-class AuthController {
+/**
+ * Handles user authentication (login, logout).
+ */
+class AuthController extends Controller {
 
+    /**
+     * Displays the login form.
+     * @return mixed
+     */
     public function create() {
-        // Show the login form
         return view('auth/login', ['title' => 'Login']);
     }
 
+    /**
+     * Processes the login form submission.
+     */
     public function store() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
             die('CSRF token validation failed.');
         }
 
-        // Handle login attempt
         $db = Database::getInstance()->getConnection();
 
         // 1. Find the user by email
@@ -27,7 +35,6 @@ class AuthController {
         // 2. Verify password
         if ($user && password_verify($_POST['password'], $user['password_hash'])) {
             // 3. Start session and store user info
-            session_start();
             $_SESSION['user'] = [
                 'id' => $user['id'],
                 'name' => $user['name'],
@@ -35,17 +42,22 @@ class AuthController {
             ];
 
             // Redirect to the appropriate dashboard
-            header('Location: /dashboard'); // A generic dashboard for now
+            header('Location: /dashboard');
             exit();
         }
 
         // Failed login
-        // Later, we can add flash messages for errors
-        return view('auth/login', ['error' => 'Invalid credentials.']);
+        return view('auth/login', [
+            'title' => 'Login',
+            'error' => 'Invalid credentials.'
+        ]);
     }
 
+    /**
+     * Destroys the user session (logout).
+     */
     public function destroy() {
-        session_start();
+        if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
         session_destroy();
         header('Location: /');
         exit();

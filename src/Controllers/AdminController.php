@@ -4,40 +4,91 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
+/**
+ * Handles all admin-only functionality.
+ */
 class AdminController extends Controller {
 
+    /**
+     * Ensures the user is an admin before any action is taken.
+     */
     public function __construct() {
         $this->isAdmin();
     }
 
+    /**
+     * The main entry point for the /admin route, redirects to the user list.
+     */
     public function index() {
-        // The main admin dashboard is still at /dashboard, which is fine.
-        // This controller handles specific admin sections like user management.
-        // We can add more to this later.
         header('Location: /admin/users');
         exit();
     }
 
-    public function usersDestroy() {
+    /**
+     * Displays the list of all users.
+     * @return mixed
+     */
+    public function usersIndex() {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->query("SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC");
+        $users = $stmt->fetchAll();
+
+        return view('admin/users/index', ['users' => $users]);
+    }
+
+    /**
+     * Displays the form to create a new user.
+     * @return mixed
+     */
+    public function usersCreate() {
+        return view('admin/users/create');
+    }
+
+    /**
+     * Processes the creation of a new user.
+     */
+    public function usersStore() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
-        if (empty($_POST['id'])) {
-            die('User ID is required.');
+        // Basic validation
+        if (empty($_POST['name']) || empty($_POST['email']) || empty($_POST['password']) || empty($_POST['role'])) {
+            die('All fields are required.');
         }
-
-        // Prevent admin from deleting their own account
-        if ($_POST['id'] == $_SESSION['user']['id']) {
-            die('You cannot delete your own account.');
+        if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+            die('Invalid email format.');
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("DELETE FROM users WHERE id = :id");
-        $stmt->execute(['id' => $_POST['id']]);
+
+        // Check if email already exists
+        $stmt = $db->prepare("SELECT id FROM users WHERE email = :email");
+        $stmt->execute(['email' => $_POST['email']]);
+        if ($stmt->fetch()) {
+            die('Email already in use.');
+        }
+
+        // Hash password
+        $password_hash = password_hash($_POST['password'], PASSWORD_BCRYPT);
+
+        // Insert into database
+        $stmt = $db->prepare(
+            "INSERT INTO users (name, email, password_hash, role) VALUES (:name, :email, :password_hash, :role)"
+        );
+        $stmt->execute([
+            'name' => $_POST['name'],
+            'email' => $_POST['email'],
+            'password_hash' => $password_hash,
+            'role' => $_POST['role']
+        ]);
 
         header('Location: /admin/users');
         exit();
     }
 
+    /**
+     * Displays the form to edit an existing user.
+     * @return mixed
+     */
     public function usersEdit() {
         if (!isset($_GET['id'])) {
             die('User ID is required.');
@@ -55,6 +106,9 @@ class AdminController extends Controller {
         return view('admin/users/edit', ['user' => $user]);
     }
 
+    /**
+     * Processes the update of an existing user.
+     */
     public function usersUpdate() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -95,57 +149,33 @@ class AdminController extends Controller {
         exit();
     }
 
-    public function usersIndex() {
-        $db = Database::getInstance()->getConnection();
-        $stmt = $db->query("SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC");
-        $users = $stmt->fetchAll();
-
-        return view('admin/users/index', ['users' => $users]);
-    }
-
-    public function usersCreate() {
-        return view('admin/users/create');
-    }
-
-    public function usersStore() {
+    /**
+     * Processes the deletion of a user.
+     */
+    public function usersDestroy() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
-        // Basic validation
-        if (empty($_POST['name']) || empty($_POST['email']) || empty($_POST['password']) || empty($_POST['role'])) {
-            // Handle error, maybe with session flash messages
-            die('All fields are required.');
+        if (empty($_POST['id'])) {
+            die('User ID is required.');
         }
-        if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
-            die('Invalid email format.');
+
+        // Prevent admin from deleting their own account
+        if ($_POST['id'] == $_SESSION['user']['id']) {
+            die('You cannot delete your own account.');
         }
 
         $db = Database::getInstance()->getConnection();
-
-        // Check if email already exists
-        $stmt = $db->prepare("SELECT id FROM users WHERE email = :email");
-        $stmt->execute(['email' => $_POST['email']]);
-        if ($stmt->fetch()) {
-            die('Email already in use.');
-        }
-
-        // Hash password
-        $password_hash = password_hash($_POST['password'], PASSWORD_BCRYPT);
-
-        // Insert into database
-        $stmt = $db->prepare(
-            "INSERT INTO users (name, email, password_hash, role) VALUES (:name, :email, :password_hash, :role)"
-        );
-        $stmt->execute([
-            'name' => $_POST['name'],
-            'email' => $_POST['email'],
-            'password_hash' => $password_hash,
-            'role' => $_POST['role']
-        ]);
+        $stmt = $db->prepare("DELETE FROM users WHERE id = :id");
+        $stmt->execute(['id' => $_POST['id']]);
 
         header('Location: /admin/users');
         exit();
     }
 
+    /**
+     * Displays the global settings page.
+     * @return mixed
+     */
     public function settings() {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->query("SELECT setting_key, setting_value FROM settings");
@@ -154,6 +184,9 @@ class AdminController extends Controller {
         return view('admin/settings', ['settings' => $settings]);
     }
 
+    /**
+     * Processes the update of global settings.
+     */
     public function updateSettings() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
 
@@ -164,11 +197,14 @@ class AdminController extends Controller {
             $stmt->execute(['key' => $key, 'value' => $value]);
         }
 
-        // Add a flash message for success
         header('Location: /admin/settings');
         exit();
     }
 
+    /**
+     * Displays the audit logs.
+     * @return mixed
+     */
     public function gameLogs() {
         $db = Database::getInstance()->getConnection();
         $stmt = $db->query("SELECT * FROM audit_logs ORDER BY created_at DESC");

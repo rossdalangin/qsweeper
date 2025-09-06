@@ -5,10 +5,21 @@ namespace App\Core;
 use PDO;
 use PDOException;
 
+/**
+ * Singleton Database Class
+ * Handles the database connection using PDO.
+ */
 class Database {
+    /** @var Database|null The single instance of the Database class. */
     private static $instance = null;
+
+    /** @var PDO The PDO connection object. */
     private $conn;
 
+    /**
+     * Private constructor to prevent direct instantiation.
+     * Establishes the database connection.
+     */
     private function __construct() {
         // Get database credentials from config
         require_once __DIR__ . '/../../config.php';
@@ -28,6 +39,11 @@ class Database {
         }
     }
 
+    /**
+     * Gets the single instance of the Database class.
+     *
+     * @return Database The singleton instance.
+     */
     public static function getInstance() {
         if (self::$instance == null) {
             self::$instance = new Database();
@@ -35,6 +51,11 @@ class Database {
         return self::$instance;
     }
 
+    /**
+     * Gets the PDO connection object.
+     *
+     * @return PDO The active PDO connection.
+     */
     public function getConnection() {
         return $this->conn;
     }

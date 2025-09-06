@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Logs</title>
-    <style>
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background-color: #f2f2f2; }
-    </style>
 </head>
 <body>
     <h1>Game & Audit Logs</h1>

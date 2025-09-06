@@ -5,56 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game #<?= $game['id'] ?></title>
     <meta name="csrf-token" content="<?= csrf_token() ?>"> <!-- For JS AJAX requests -->
-    <style>
-        body { font-family: sans-serif; }
-        .game-container { display: flex; gap: 20px; }
-        .board {
-            display: grid;
-            grid-template-columns: repeat(<?= $game['cols'] ?>, 50px);
-            grid-template-rows: repeat(<?= $game['rows'] ?>, 50px);
-            gap: 3px;
-            border: 2px solid #333;
-            padding: 5px;
-            background-color: #666;
-        }
-        .tile {
-            width: 50px;
-            height: 50px;
-            border: 1px solid #999;
-            background-color: #ccc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8em;
-            cursor: pointer;
-        }
-        .tile:hover { background-color: #ddd; }
-        .tile.revealed {
-            background-color: #f1f1f1;
-            cursor: default;
-        }
-        .tile.correct { background-color: #90ee90; }
-        .tile.incorrect { background-color: #ff7f7f; }
-        .tile.bomb { background-color: #333; color: white; }
-        .tile.knife { background-color: #ffc107; color: black; }
-        .tile.bandaid { background-color: #d4edda; color: black; }
-
-        #choices-container label.correct-answer { color: green; font-weight: bold; }
-        #choices-container label.incorrect-answer { color: red; text-decoration: line-through; }
-
-        #question-modal {
-            display: none; /* Hidden by default */
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #question-modal-content {
-            background: white; padding: 20px; border-radius: 5px; width: 80%; max-width: 600px;
-        }
-    </style>
 </head>
 <body>
 

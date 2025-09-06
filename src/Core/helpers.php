@@ -5,8 +5,9 @@
 /**
  * Render a view file.
  *
- * @param string $path The path to the view file.
- * @param array $data The data to be extracted for the view.
+ * @param string $path The path to the view file (e.g., 'users/index').
+ * @param array $data The data to be extracted and made available to the view.
+ * @return mixed
  */
 function view($path, $data = []) {
     extract($data);
@@ -14,9 +15,9 @@ function view($path, $data = []) {
 }
 
 /**
- * Generate a CSRF token and store it in the session.
+ * Generate and retrieve a CSRF token, storing it in the session if it doesn't exist.
  *
- * @return string The generated token.
+ * @return string The generated CSRF token.
  */
 function csrf_token() {
     if (empty($_SESSION['csrf_token'])) {
@@ -26,18 +27,11 @@ function csrf_token() {
 }
 
 /**
- * Get the CSRF token from the session.
+ * Validate a CSRF token against the one stored in the session.
+ * This uses a session-bound token that is not invalidated after one use,
+ * making it suitable for pages with multiple AJAX requests.
  *
- * @return string The CSRF token.
- */
-function get_csrf_token() {
-    return $_SESSION['csrf_token'] ?? '';
-}
-
-/**
- * Validate a CSRF token.
- *
- * @param string $token The token from the form submission.
+ * @param string $token The token from the form submission or request header.
  * @return bool True if the token is valid, false otherwise.
  */
 function validate_csrf_token($token) {

@@ -4,15 +4,23 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
+/**
+ * Handles game management functionality, primarily for teachers.
+ */
 class GameController extends Controller {
 
+    /**
+     * Ensures a user is logged in before any game action.
+     * Specific role checks are done within each method.
+     */
     public function __construct() {
-        // Most actions are for teachers, but students will also interact (e.g., view board)
-        // We'll protect methods individually as needed.
         $this->isLoggedIn();
     }
 
-    // Show the form to configure a new game
+    /**
+     * Displays the form for a teacher to create and configure a new game.
+     * @return mixed
+     */
     public function create() {
         $this->isTeacher(); // Only teachers can create games
 
@@ -35,15 +43,19 @@ class GameController extends Controller {
         return view('teacher/games/create', [
             'quizzes' => $quizzes,
             'groups' => $groups,
-            'settings' => $settings
+            'settings' => $settings,
+            'title' => 'Start New Game'
         ]);
     }
 
+    /**
+     * Processes the creation of a new game, including generating all tiles.
+     */
     public function store() {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
         $this->isTeacher();
 
-        // 1. Validation
+        // Validation
         $required = ['quiz_id', 'group_ids', 'rows', 'cols', 'bomb_count', 'knife_count', 'bandaid_count', 'correct_points', 'wrong_points', 'bomb_penalty'];
         foreach ($required as $field) {
             if (empty($_POST[$field]) && $_POST[$field] !== '0') die("Field {$field} is required.");
@@ -71,7 +83,7 @@ class GameController extends Controller {
             die("The selected quiz does not have enough questions for the board size. It has " . count($questions) . " but needs " . $questionTiles . ".");
         }
 
-        // 2. Database Transaction
+        // Database Transaction
         try {
             $db->beginTransaction();
 
@@ -127,11 +139,16 @@ class GameController extends Controller {
             die("Failed to create game: " . $e->getMessage());
         }
 
-        // 3. Redirect to lobby
+        // Redirect to lobby
         header('Location: /games/' . $gameId . '/lobby');
         exit();
     }
 
+    /**
+     * Displays the game lobby for a teacher before a game starts.
+     * @param int $gameId The ID of the game.
+     * @return mixed
+     */
     public function lobby($gameId) {
         $this->isTeacher();
 
@@ -167,13 +184,20 @@ class GameController extends Controller {
             $groups[$row['group_id']]['members'][] = [
                 'id' => $row['user_id'],
                 'name' => $row['user_name']
-                // We can add a 'joined_lobby' status here later
             ];
         }
 
-        return view('teacher/games/lobby', ['game' => $game, 'groups' => $groups]);
+        return view('teacher/games/lobby', [
+            'game' => $game,
+            'groups' => $groups,
+            'title' => 'Game Lobby'
+        ]);
     }
 
+    /**
+     * Starts a game from the lobby.
+     * @param int $gameId The ID of the game.
+     */
     public function startGame($gameId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
         $this->isTeacher();
@@ -185,11 +209,14 @@ class GameController extends Controller {
         );
         $stmt->execute(['id' => $gameId, 'teacher_id' => $_SESSION['user']['id']]);
 
-        // Redirect to a live game view (to be created)
         header('Location: /games/' . $gameId . '/board');
         exit();
     }
 
+    /**
+     * Cancels a game from the lobby.
+     * @param int $gameId The ID of the game.
+     */
     public function cancelGame($gameId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
         $this->isTeacher();
@@ -201,14 +228,16 @@ class GameController extends Controller {
         );
         $stmt->execute(['id' => $gameId, 'teacher_id' => $_SESSION['user']['id']]);
 
-        // Redirect back to the main teacher dashboard
         header('Location: /dashboard');
         exit();
     }
 
+    /**
+     * Displays the main game board for both students and teachers.
+     * @param int $gameId The ID of the game.
+     * @return mixed
+     */
     public function board($gameId) {
-        // This method will be used by both teachers and students.
-        // Access control is important here.
         $user = $_SESSION['user'];
         $db = Database::getInstance()->getConnection();
 
@@ -251,10 +280,15 @@ class GameController extends Controller {
             'game' => $game,
             'tiles' => $tiles,
             'scores' => $scores,
-            'user' => $user
+            'user' => $user,
+            'title' => "Game #" . $gameId
         ]);
     }
 
+    /**
+     * Manually ends a running game.
+     * @param int $gameId The ID of the game.
+     */
     public function endGame($gameId) {
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) die('CSRF token validation failed.');
         $this->isTeacher();
@@ -270,8 +304,13 @@ class GameController extends Controller {
         exit();
     }
 
+    /**
+     * Displays the final results and scoreboard for a finished game.
+     * @param int $gameId The ID of the game.
+     * @return mixed
+     */
     public function results($gameId) {
-        $this->isLoggedIn(); // Both teachers and students can see results
+        $this->isLoggedIn();
         $db = Database::getInstance()->getConnection();
 
         // Get game, ensuring it is finished
@@ -280,7 +319,7 @@ class GameController extends Controller {
         $game = $stmt->fetch();
         if (!$game) die('Game not found or has not finished.');
 
-        // TODO: Verify user is part of this game
+        // TODO: Verify user is part of this game (low priority as no sensitive data is shown)
 
         // Get final scores, ranked
         $stmt = $db->prepare(
@@ -293,11 +332,17 @@ class GameController extends Controller {
         $stmt->execute(['game_id' => $gameId]);
         $scores = $stmt->fetchAll();
 
-        // We can fetch more detailed stats here later if needed
-
-        return view('teacher/games/results', ['game' => $game, 'scores' => $scores]);
+        return view('teacher/games/results', [
+            'game' => $game,
+            'scores' => $scores,
+            'title' => 'Game Results'
+        ]);
     }
 
+    /**
+     * Generates and serves a CSV file of a game's results.
+     * @param int $gameId The ID of the game.
+     */
     public function exportCsv($gameId) {
         $this->isTeacher();
         $db = Database::getInstance()->getConnection();
