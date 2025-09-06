@@ -17,11 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Update scores
-        for (const [groupId, score] of Object.entries(state.scores)) {
+        // Update scores and protection status
+        for (const [groupId, groupData] of Object.entries(state.scores)) {
             const scoreEl = document.getElementById(`score-${groupId}`);
             if (scoreEl) {
-                scoreEl.textContent = score;
+                scoreEl.textContent = groupData.score;
+            }
+            const protectionEl = document.getElementById(`protection-${groupId}`);
+            if (protectionEl) {
+                protectionEl.textContent = groupData.has_protection ? '🛡️' : '';
             }
         }
 
@@ -41,10 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (tileData.type === 'knife') {
                     newDiv.classList.add('knife');
                     content = '🔪';
+                } else if (tileData.type === 'bandaid') {
+                    newDiv.classList.add('bandaid');
+                    content = '🩹';
                 } else if (tileData.type === 'question') {
-                    // The color (correct/incorrect) will be set after an answer
-                    // For now, it's just a generic revealed question tile
                     newDiv.classList.add('question');
+                    content = '❓';
                 }
                 newDiv.innerHTML = content;
                 tileEl.replaceWith(newDiv);
@@ -92,6 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
+
+            if (result.message) {
+                alert(result.message);
+            }
 
             // If it's a question, show the modal. Otherwise, the poller will handle the UI update.
             if (result.type === 'question') {
@@ -169,16 +179,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
+
+            // Highlight correct/incorrect choices
+            const correctLabel = document.querySelector(`label[for="choice-${result.correctChoiceId}"]`);
+            if (correctLabel) {
+                correctLabel.classList.add('correct-answer');
+            }
+            if (!result.correct) {
+                const incorrectLabel = document.querySelector(`label[for="choice-${choiceId}"]`);
+                if (incorrectLabel) {
+                    incorrectLabel.classList.add('incorrect-answer');
+                }
+            }
+
+            // Also update the tile on the board immediately
             const tileEl = document.getElementById(tileId);
             if (tileEl) {
                 tileEl.classList.add(result.correct ? 'correct' : 'incorrect');
             }
 
+            // Hide modal after a delay
+            setTimeout(() => {
+                document.getElementById('question-modal').style.display = 'none';
+            }, 2000);
+
         } catch (error) {
             console.error('Error submitting answer:', error);
-        } finally {
+            // Hide modal even on error to not get stuck
             document.getElementById('question-modal').style.display = 'none';
-            // The poller will update the score and any other state changes
         }
     };
 

@@ -37,6 +37,10 @@
         .tile.incorrect { background-color: #ff7f7f; }
         .tile.bomb { background-color: #333; color: white; }
         .tile.knife { background-color: #ffc107; color: black; }
+        .tile.bandaid { background-color: #d4edda; color: black; }
+
+        #choices-container label.correct-answer { color: green; font-weight: bold; }
+        #choices-container label.incorrect-answer { color: red; text-decoration: line-through; }
 
         #question-modal {
             display: none; /* Hidden by default */
@@ -74,7 +78,9 @@
                         $content = '';
                         if ($tile['type'] === 'bomb')  { $class .= ' bomb'; $content = '💣'; }
                         if ($tile['type'] === 'knife') { $class .= ' knife'; $content = '🔪'; }
-                        // Correct/incorrect state will be applied by JS based on answer
+                        if ($tile['type'] === 'bandaid') { $class .= ' bandaid'; $content = '🩹'; }
+                        if ($tile['type'] === 'question') { $class .= ' question'; $content = '❓'; }
+                        // Correct/incorrect state for answered questions will be applied by JS
                         echo "<div class='{$class}' id='{$tileId}'>{$content}</div>";
                     }
                 ?>
@@ -88,6 +94,7 @@
                     <li data-group-id="<?= $score['group_id'] ?>">
                         Group <?= htmlspecialchars($score['group_id']) ?>:
                         <strong id="score-<?= $score['group_id'] ?>"><?= htmlspecialchars($score['score']) ?></strong>
+                        <span class="protection-status" id="protection-<?= $score['group_id'] ?>"></span>
                     </li>
                 <?php endforeach; ?>
             </ul>

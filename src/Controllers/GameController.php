@@ -44,25 +44,26 @@ class GameController extends Controller {
         $this->isTeacher();
 
         // 1. Validation
-        $required = ['quiz_id', 'group_ids', 'rows', 'cols', 'bomb_count', 'knife_count', 'correct_points', 'wrong_points', 'bomb_penalty'];
+        $required = ['quiz_id', 'group_ids', 'rows', 'cols', 'bomb_count', 'knife_count', 'bandaid_count', 'correct_points', 'wrong_points', 'bomb_penalty'];
         foreach ($required as $field) {
-            if (empty($_POST[$field])) die("Field {$field} is required.");
+            if (empty($_POST[$field]) && $_POST[$field] !== '0') die("Field {$field} is required.");
         }
 
         $rows = (int)$_POST['rows'];
         $cols = (int)$_POST['cols'];
         $bombs = (int)$_POST['bomb_count'];
         $knives = (int)$_POST['knife_count'];
+        $bandaids = (int)$_POST['bandaid_count'];
         $totalTiles = $rows * $cols;
-        $penaltyTiles = $bombs + $knives;
-        if ($penaltyTiles >= $totalTiles) {
-            die("The number of bomb and knife tiles must be less than the total number of tiles.");
+        $specialTiles = $bombs + $knives + $bandaids;
+        if ($specialTiles >= $totalTiles) {
+            die("The number of special tiles (bombs, knives, band-aids) must be less than the total number of tiles.");
         }
 
         $db = Database::getInstance()->getConnection();
 
         // Check if quiz has enough questions
-        $questionTiles = $totalTiles - $penaltyTiles;
+        $questionTiles = $totalTiles - $specialTiles;
         $stmt = $db->prepare("SELECT id FROM questions WHERE quiz_id = :quiz_id");
         $stmt->execute(['quiz_id' => $_POST['quiz_id']]);
         $questions = $stmt->fetchAll(\PDO::FETCH_COLUMN);
@@ -76,14 +77,14 @@ class GameController extends Controller {
 
             // Insert game record
             $stmt = $db->prepare(
-                "INSERT INTO games (quiz_id, teacher_id, `rows`, cols, bomb_count, knife_count, correct_points, wrong_points, bomb_penalty, status)
-                 VALUES (:quiz_id, :teacher_id, :rows, :cols, :bomb_count, :knife_count, :correct_points, :wrong_points, :bomb_penalty, 'lobby')"
+                "INSERT INTO games (quiz_id, teacher_id, `rows`, cols, bomb_count, knife_count, bandaid_count, correct_points, wrong_points, bomb_penalty, status)
+                 VALUES (:quiz_id, :teacher_id, :rows, :cols, :bomb_count, :knife_count, :bandaid_count, :correct_points, :wrong_points, :bomb_penalty, 'lobby')"
             );
             $stmt->execute([
                 'quiz_id' => $_POST['quiz_id'],
                 'teacher_id' => $_SESSION['user']['id'],
                 'rows' => $rows, 'cols' => $cols,
-                'bomb_count' => $bombs, 'knife_count' => $knives,
+                'bomb_count' => $bombs, 'knife_count' => $knives, 'bandaid_count' => $bandaids,
                 'correct_points' => $_POST['correct_points'],
                 'wrong_points' => $_POST['wrong_points'],
                 'bomb_penalty' => $_POST['bomb_penalty']
@@ -100,6 +101,7 @@ class GameController extends Controller {
             $tiles = [];
             for ($i = 0; $i < $bombs; $i++) $tiles[] = ['type' => 'bomb', 'question_id' => null];
             for ($i = 0; $i < $knives; $i++) $tiles[] = ['type' => 'knife', 'question_id' => null];
+            for ($i = 0; $i < $bandaids; $i++) $tiles[] = ['type' => 'bandaid', 'question_id' => null];
 
             shuffle($questions);
             for ($i = 0; $i < $questionTiles; $i++) $tiles[] = ['type' => 'question', 'question_id' => $questions[$i]];

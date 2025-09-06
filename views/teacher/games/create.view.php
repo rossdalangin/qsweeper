@@ -46,6 +46,10 @@
             <label for="knife_count">Number of Knives</label>
             <input type="number" id="knife_count" name="knife_count" value="<?= htmlspecialchars($settings['default_knife_count']) ?>" required>
         </div>
+        <div>
+            <label for="bandaid_count">Number of Band-Aids</label>
+            <input type="number" id="bandaid_count" name="bandaid_count" value="<?= htmlspecialchars($settings['default_bandaid_count'] ?? 2) ?>" required>
+        </div>
 
         <h3>3. Scoring Rules</h3>
         <div>

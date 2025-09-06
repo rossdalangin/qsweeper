@@ -71,4 +71,5 @@ INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
 ('default_knife_count', '3'),
 ('default_correct_points', '10'),
 ('default_wrong_points', '0'),
-('default_bomb_penalty', '20');
+('default_bomb_penalty', '20'),
+('default_bandaid_count', '2');

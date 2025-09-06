@@ -53,10 +53,18 @@ class ApiController extends Controller {
         $stmt->execute(['id' => $gameId]);
         $tiles = $stmt->fetchAll();
 
-        // Get all scores
-        $stmt = $db->prepare("SELECT group_id, score FROM group_scores WHERE game_id = :id");
+        // Get all scores and protection status
+        $stmt = $db->prepare("SELECT group_id, score, has_protection FROM group_scores WHERE game_id = :id");
         $stmt->execute(['id' => $gameId]);
-        $scores = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $scoresData = $stmt->fetchAll();
+
+        $scores = [];
+        foreach($scoresData as $row) {
+            $scores[$row['group_id']] = [
+                'score' => $row['score'],
+                'has_protection' => (bool)$row['has_protection']
+            ];
+        }
 
         echo json_encode([
             'status' => $game['status'],
@@ -110,13 +118,20 @@ class ApiController extends Controller {
                 throw new \Exception("Tile already revealed.");
             }
 
-            // Get user's group
-            $stmt = $db->prepare("SELECT group_id FROM group_members WHERE user_id = :user_id AND group_id IN (SELECT group_id FROM group_scores WHERE game_id = :game_id)");
+            // Get user's group and protection status
+            $stmt = $db->prepare(
+                "SELECT gm.group_id, gs.has_protection
+                 FROM group_members gm
+                 JOIN group_scores gs ON gm.group_id = gs.group_id
+                 WHERE gm.user_id = :user_id AND gs.game_id = :game_id"
+            );
             $stmt->execute(['user_id' => $userId, 'game_id' => $gameId]);
-            $groupId = $stmt->fetchColumn();
-            if (!$groupId) {
+            $groupInfo = $stmt->fetch();
+            if (!$groupInfo) {
                 throw new \Exception("User is not in a participating group.");
             }
+            $groupId = $groupInfo['group_id'];
+            $hasProtection = $groupInfo['has_protection'];
 
             // Update the tile
             $stmt = $db->prepare("UPDATE game_tiles SET revealed = 1, revealed_by_user_id = :user_id, revealed_at = NOW() WHERE id = :id");
@@ -124,19 +139,31 @@ class ApiController extends Controller {
 
             $response = ['status' => 'ok', 'type' => $tile['type'], 'tile_index' => $tileIndex];
 
-            // Handle penalties
-            if ($tile['type'] === 'bomb' || $tile['type'] === 'knife') {
-                $gameStmt = $db->prepare("SELECT bomb_penalty FROM games WHERE id = :id");
-                $gameStmt->execute(['id' => $gameId]);
-                $game = $gameStmt->fetch();
+            // Handle tile effects
+            if ($tile['type'] === 'bandaid') {
+                $stmt = $db->prepare("UPDATE group_scores SET has_protection = 1 WHERE game_id = :game_id AND group_id = :group_id");
+                $stmt->execute(['game_id' => $gameId, 'group_id' => $groupId]);
+                $response['message'] = 'You found a band-aid! Your group is now protected from the next penalty.';
+            } elseif ($tile['type'] === 'bomb' || $tile['type'] === 'knife') {
+                if ($hasProtection) {
+                    // Consume the protection
+                    $stmt = $db->prepare("UPDATE group_scores SET has_protection = 0 WHERE game_id = :game_id AND group_id = :group_id");
+                    $stmt->execute(['game_id' => $gameId, 'group_id' => $groupId]);
+                    $response['message'] = 'Your band-aid protected you from the penalty!';
+                } else {
+                    // Apply the penalty
+                    $gameStmt = $db->prepare("SELECT bomb_penalty FROM games WHERE id = :id");
+                    $gameStmt->execute(['id' => $gameId]);
+                    $game = $gameStmt->fetch();
 
-                if ($tile['type'] === 'bomb') {
-                    $scoreChange = -1 * abs($game['bomb_penalty']);
-                    $scoreStmt = $db->prepare("UPDATE group_scores SET score = score + :change WHERE game_id = :game_id AND group_id = :group_id");
-                    $scoreStmt->execute(['change' => $scoreChange, 'game_id' => $gameId, 'group_id' => $groupId]);
-                } elseif ($tile['type'] === 'knife') {
-                    $scoreStmt = $db->prepare("UPDATE group_scores SET score = 0 WHERE game_id = :game_id AND group_id = :group_id");
-                    $scoreStmt->execute(['game_id' => $gameId, 'group_id' => $groupId]);
+                    if ($tile['type'] === 'bomb') {
+                        $scoreChange = -1 * abs($game['bomb_penalty']);
+                        $scoreStmt = $db->prepare("UPDATE group_scores SET score = score + :change WHERE game_id = :game_id AND group_id = :group_id");
+                        $scoreStmt->execute(['change' => $scoreChange, 'game_id' => $gameId, 'group_id' => $groupId]);
+                    } elseif ($tile['type'] === 'knife') {
+                        $scoreStmt = $db->prepare("UPDATE group_scores SET score = 0 WHERE game_id = :game_id AND group_id = :group_id");
+                        $scoreStmt->execute(['game_id' => $gameId, 'group_id' => $groupId]);
+                    }
                 }
             } elseif ($tile['type'] === 'question') {
                 // Fetch question data to send to the client
@@ -205,10 +232,21 @@ class ApiController extends Controller {
             $stmt->execute(['tile_id' => $tile['id']]);
             if ($stmt->fetch()) throw new \Exception("Question already answered.");
 
-            // Check if choice is correct
-            $stmt = $db->prepare("SELECT is_correct FROM choices WHERE id = :id AND question_id = :question_id");
-            $stmt->execute(['id' => $choiceId, 'question_id' => $tile['question_id']]);
-            $isCorrect = (bool)$stmt->fetchColumn();
+            // Check if choice is correct and get the actual correct choice ID
+            $choiceStmt = $db->prepare("SELECT id, is_correct FROM choices WHERE question_id = :question_id");
+            $choiceStmt->execute(['question_id' => $tile['question_id']]);
+            $choices = $choiceStmt->fetchAll();
+
+            $isCorrect = false;
+            $correctChoiceId = null;
+            foreach ($choices as $choice) {
+                if ($choice['is_correct']) {
+                    $correctChoiceId = $choice['id'];
+                }
+                if ($choice['id'] == $choiceId && $choice['is_correct']) {
+                    $isCorrect = true;
+                }
+            }
 
             // Get game scoring rules
             $stmt = $db->prepare("SELECT correct_points, wrong_points FROM games WHERE id = :id");
@@ -239,7 +277,7 @@ class ApiController extends Controller {
 
             $db->commit();
 
-            echo json_encode(['correct' => $isCorrect]);
+            echo json_encode(['correct' => $isCorrect, 'correctChoiceId' => $correctChoiceId]);
 
         } catch (\Exception $e) {
             $db->rollBack();

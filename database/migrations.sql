@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS `games` (
   `cols` INT NOT NULL,
   `bomb_count` INT NOT NULL,
   `knife_count` INT NOT NULL,
+  `bandaid_count` INT NOT NULL DEFAULT 0,
   `correct_points` INT NOT NULL DEFAULT 10,
   `wrong_points` INT NOT NULL DEFAULT 0,
   `bomb_penalty` INT NOT NULL DEFAULT 20,
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS `game_tiles` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `game_id` INT NOT NULL,
   `tile_index` INT NOT NULL, -- e.g., 0 to (rows*cols - 1)
-  `type` ENUM('question', 'bomb', 'knife') NOT NULL,
+  `type` ENUM('question', 'bomb', 'knife', 'bandaid') NOT NULL,
   `question_id` INT NULL, -- Null if type is not 'question'
   `revealed` BOOLEAN NOT NULL DEFAULT FALSE,
   `revealed_by_user_id` INT NULL,
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS `group_scores` (
   `game_id` INT NOT NULL,
   `group_id` INT NOT NULL,
   `score` INT NOT NULL DEFAULT 0,
+  `has_protection` BOOLEAN NOT NULL DEFAULT FALSE,
   `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `unique_group_score` (`game_id`, `group_id`),
   FOREIGN KEY (`game_id`) REFERENCES `games`(`id`) ON DELETE CASCADE,
