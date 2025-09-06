@@ -1,20 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Over!</title>
-    <style>
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background-color: #f2f2f2; }
-        .rank-1 { font-size: 1.5em; font-weight: bold; color: gold; }
-    </style>
-</head>
-<body>
-    <h1>Game Over!</h1>
-    <h2>Final Scoreboard</h2>
+<h1>Game Over!</h1>
+<h2>Final Scoreboard</h2>
 
+<div class="card">
     <table>
         <thead>
             <tr>
@@ -33,12 +20,9 @@
             <?php endforeach; ?>
         </tbody>
     </table>
+</div>
 
-    <hr>
+<hr>
 
-    <a href="/exports/game/<?= $game['id'] ?>/csv">Export Results as CSV</a>
-    <br><br>
-    <a href="/dashboard">Return to Dashboard</a>
-
-</body>
-</html>
+<a href="/exports/game/<?= $game['id'] ?>/csv" class="button">Export Results as CSV</a>
+<a href="/dashboard" class="button">Return to Dashboard</a>

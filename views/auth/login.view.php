@@ -1,9 +1,9 @@
-<?php require __DIR__ . '/../partials/header.view.php'; ?>
-
 <h1>Login</h1>
 
 <?php if (isset($error)): ?>
-    <p style="color: red;"><?= htmlspecialchars($error) ?></p>
+    <div class="card" style="border-color: var(--danger-color);">
+        <p style="color: var(--danger-color); margin: 0;"><?= htmlspecialchars($error) ?></p>
+    </div>
 <?php endif; ?>
 
 <form action="/login" method="POST">
@@ -21,5 +21,3 @@
 
     <button type="submit">Login</button>
 </form>
-
-<?php require __DIR__ . '/../partials/footer.view.php'; ?>

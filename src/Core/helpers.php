@@ -10,8 +10,9 @@
  * @return mixed
  */
 function view($path, $data = []) {
+    $data['view'] = __DIR__ . "/../../views/{$path}.view.php";
     extract($data);
-    return require __DIR__ . "/../../views/{$path}.view.php";
+    return require __DIR__ . "/../../views/layout.view.php";
 }
 
 /**

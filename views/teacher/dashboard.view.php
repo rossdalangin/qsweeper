@@ -1,28 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Dashboard</title>
-</head>
-<body>
-    <header>
-        <h1>Teacher Dashboard</h1>
-        <nav>
-            <a href="/teacher/groups">My Groups</a>
-            <a href="/teacher/quizzes">My Quizzes</a>
-            <a href="/games/create" style="font-weight: bold; color: green;">Start New Game</a>
-            <a href="/instructions">How to Play</a>
-            <!-- Add other teacher links here -->
-        </nav>
-        <form action="/logout" method="POST" style="display:inline;">
-            <button type="submit">Logout</button>
-        </form>
-    </header>
+<h1>Teacher Dashboard</h1>
+<p>Welcome, <?= htmlspecialchars($user['name']) ?>!</p>
 
-    <main>
-        <h2>Welcome, <?= htmlspecialchars($user['name']) ?>!</h2>
-        <p>Select an option from the navigation to get started.</p>
-    </main>
-</body>
-</html>
+<div class="dashboard-layout">
+    <aside class="dashboard-nav card">
+        <a href="/games/create" style="font-weight: bold; color: var(--success-color);">Start New Game</a>
+        <a href="/teacher/quizzes">My Quizzes</a>
+        <a href="/teacher/groups">My Groups</a>
+        <a href="/instructions">How to Play</a>
+    </aside>
+    <div class="dashboard-content card">
+        <h2>Quick Actions</h2>
+        <p>Select an option from the navigation menu to get started.</p>
+        <!-- More dashboard widgets could go here -->
+    </div>
+</div>

@@ -281,7 +281,8 @@ class GameController extends Controller {
             'tiles' => $tiles,
             'scores' => $scores,
             'user' => $user,
-            'title' => "Game #" . $gameId
+            'title' => "Game #" . $gameId,
+            'js' => '/js/game.js'
         ]);
     }
 
