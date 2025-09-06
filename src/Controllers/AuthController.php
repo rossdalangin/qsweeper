@@ -8,7 +8,7 @@ class AuthController {
 
     public function create() {
         // Show the login form
-        return view('auth/login');
+        return view('auth/login', ['title' => 'Login']);
     }
 
     public function store() {
